@@ -5,7 +5,7 @@ Plan-based reward shaping for multi-agent reinforcement learning
 * Review submission : 15/01/2019
 * Exam : 17/01/2019
 
-#To do
+# To do
 
 * Article presentation
 * algorithm based on the article
