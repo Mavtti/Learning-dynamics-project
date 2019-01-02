@@ -7,6 +7,6 @@ Plan-based reward shaping for multi-agent reinforcement learning
 
 # To do
 
-* Article presentation
+* Article presentation : https://www.overleaf.com/project/5c2ce919cfc37b02ea85fbb7
 * algorithm based on the article
 * upgrade ?
