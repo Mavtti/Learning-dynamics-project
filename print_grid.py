@@ -1,3 +1,8 @@
+"""
+code taken from Jen Nevens' code : https://github.com/ProjectGameTheory/Plan-Based-Rewards
+"""
+
+
 import matplotlib.pyplot as plt
 from ast import literal_eval
 
