@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan  4 16:36:09 2019
+
+@author: marc
+"""
+
 """
 code taken from Jen Nevens' code : https://github.com/ProjectGameTheory/Plan-Based-Rewards
 """
@@ -8,7 +15,8 @@ from ast import literal_eval
 
 def getGrid(fichier):
     grid = []
-    with open(fichier) as f:
+    with open(fichier, 'rt') as f:
+        i = 0
         for line in f:
             grid.insert(0,literal_eval(line[:-1])) #Opposite order
     return grid
@@ -31,9 +39,9 @@ def printGrid(grid):
 
     ax2 = ax.twinx()
     #ax2.xaxis.set_ticks([float(x)/2 for x in range(2*n)])
-    ax2.yaxis.set_ticks([float(x)/2 for x in range(2*m+1)])
+    #ax2.yaxis.set_ticks([float(x)/2 for x in range(2*m+1)])
     ax3 = ax.twiny()
-    ax3.xaxis.set_ticks([float(x)/2 for x in range(2*n+1)])
+    #ax3.xaxis.set_ticks([float(x)/2 for x in range(2*n+1)])
 
     # create a grid
     ax.grid(True, linestyle='-', linewidth=1)
@@ -53,22 +61,28 @@ def printGrid(grid):
                         transform=ax.transAxes)
             if room not in seen_rooms:
                 seen_rooms.append(room)
-                ax.text(float(j+0.5)/n, float(i+0.5)/m, room, fontsize=14,
+                if room == 'hall B':
+                    ax.text(float(j+0.5)/n, float(i+4.5)/m, room, fontsize=10,
+                        weight='bold',
+                        verticalalignment='center',
+                        transform=ax.transAxes)
+                else:
+                    ax.text(float(j+0.5)/n, float(i+0.5)/m, room, fontsize=10,
                         weight='bold',
                         verticalalignment='center',
                         transform=ax.transAxes)
 
-    ax.text(float(4.15)/n, float(7+0.5)/m, 'S1', fontsize=14,
+    ax.text(float(4.15)/n, float(7+0.5)/m, 'S1', fontsize=10,
                         weight='bold',
                         verticalalignment='center',
                         transform=ax.transAxes)
     ax.axhline(y=m,linewidth=4,color='k')
     ax.axvline(x=n,linewidth=4,color='k')
-    ax.text(float(14.20)/n, float(7+0.5)/m, 'S2', fontsize=14,
+    ax.text(float(14.20)/n, float(7+0.5)/m, 'S2', fontsize=10,
                         weight='bold',
                         verticalalignment='center',
                         transform=ax.transAxes)
-    ax.text(float(0.8)/n, float(1.5)/m, 'Goal', fontsize=14,
+    ax.text(float(0.8)/n, float(1.5)/m, 'Goal', fontsize=8,
                         weight='bold',
                         rotation=-45,
                         verticalalignment='center',
@@ -77,8 +91,8 @@ def printGrid(grid):
     ax.axvline(x=n,linewidth=4,color='k')
     ax.axhline(y=m,linewidth=4,color='k')
     ax.axvline(x=n,linewidth=4,color='k')
-    ax2.set_yticklabels([i/2 if i % 2 else '' for i in range(2*m)], minor=False)
-    ax3.set_xticklabels([i/2 if i % 2 else '' for i in range(2*n)],minor=False)
+    ax2.set_yticklabels([], minor=False)
+    ax3.set_xticklabels([],minor=False)
     ax2.tick_params(axis=u'both', which=u'both',length=0)
     ax3.tick_params(axis=u'both', which=u'both',length=0)
     ax2.yaxis.set_ticks_position('left')
