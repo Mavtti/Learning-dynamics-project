@@ -1,34 +1,60 @@
-from planBasedReward.print_grid import *
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan  4 16:35:55 2019
+
+@author: marc
+"""
+# Useful libraries
+from print_grid import getGrid, printGrid
 import numpy as np
 from copy import deepcopy
+from collections import Counter
+import random
 
-grid = getGrid("planBasedReward/grid.txt")
+# Load the grid
+grid = getGrid("grid.txt")
 
-Q = [] # Create Q table
-for j in range(13):
-    Q.append([])
-    for i in range(18):
-        Q[j].append([0] * 4)
+def initQTable(n,m):
+    QTable = []
+    for i in range(n):
+        QTable.append([])
+        for _ in range(m):
+            QTable[i].append([0, 0, 0, 0])
+    return QTable
+
+# Initialize Q-Table
+QTable = initQTable(len(grid), len(grid[0]))
 
 # Position (x, y) starting with (0, 0) at top left corner
 Agent1StartingPosition = np.array([4, 5])
 Agent2StartingPosition = np.array([14, 5])
 GoalPosition = np.array([1, 11])
 
+# Set parameters
 alpha = 0.1
 gamma = 0.99
 epsilon = 0.1
 lambdaelement = 0.4
 
 
-# Actions
-# Action 0 : bottom
-# Action 1 : left
-# Action 2 : top
-# Action 3 : right 
+""" Actions
+Action 0 : bottom
+Action 1 : left
+Action 2 : top
+Action 3 : right 
+"""
 
 def getAction(positionAgent):
-    return 1
+    p = random.random()
+    if( p > epsilon ):
+        return bestAction(positionAgent)[0]
+    else:
+        return random.randint(0,3)
+
+def bestAction(position):
+    x,y = position
+    m = max(QTable[x][y])
+    return QTable[x][y].index(m)
 
 def testIfFinished(positionAgents, listAgents):
     for index in listAgents:
@@ -52,19 +78,19 @@ def getNewPosition(action, oldPosition):
 def testIfGoesThroughWall(action, oldPosition, newPosition):
     if action == 0:
         walls, _ , _ = grid[oldPosition[0]][oldPosition[1]]
-        if horizontal_wall(walls):
+        if walls in [2,3] :
             return True
     elif action == 1:
         walls, _ , _ = grid[oldPosition[0]][oldPosition[1]]
-        if vertical_wall(walls):
+        if walls in [1,3]:
             return True
     elif action == 2:
         walls, _ , _ = grid[newPosition[0]][newPosition[1]]
-        if horizontal_wall(walls):
+        if walls in [1,3]:
             return True
     elif action == 3:
         walls, _ , _ = grid[newPosition[0]][newPosition[1]]
-        if vertical_wall(walls):
+        if walls in [2,3]:
             return True
     return False
 
@@ -85,15 +111,18 @@ def testIfCollision(newPositionAgents, oldPositionAgents):
     for i in range(len(newPositionAgents)):
         collision = []
         for j in range(i+1, len(newPositionAgents)):
-            if newPositionAgents[j] == newPositionAgents[i]:
+            b1 = newPositionAgents[j] == newPositionAgents[i] # check if agents go to the same positon
+            b2 = oldPositionAgents[j] == newPositionAgents[i] and newPositionAgents[j] == oldPositionAgents[i] #check if agents swap position
+            if b1 or b2:
                 collision.append(i)
                 collision.append(j)
-        for agent in collision:
-            newPositionAgents[agent] = deepcopy(oldPositionAgents[agent])
+    collision = list(set(collision)) # get unique values in the list
+    for agent in collision:
+        newPositionAgents[agent] = deepcopy(oldPositionAgents[agent])
 
 def getReward(flags, newPosition, indexAgent):
     if newPosition == GoalPosition:
-        return flags.count(indexAgent) * 100
+        return Counter(flags.values())[indexAgent] * 100
     else:
         return 0
 
@@ -101,37 +130,54 @@ def updateFlags(newPositionAgents, flags):
     for i in range(len(newPositionAgents)):
         positionAgent = newPositionAgents[i]
         _, flag, _ = grid[positionAgent[0]][positionAgent[1]]
-        if flag and flags.get(flag) != -1:
+        if flag and flags.get(flag) == -1:
             flags[flag] = i
 
-def updateQ():
-    return
 
 def runOneStep(flags, listAgents, positionAgents, currentStep):
     # actions = []
     newPositionAgents = deepcopy(positionAgents)
     for indexAgent in listAgents:
-        action = getAction(positionAgents[indexAgent])
+        action = getAction(positionAgents[indexAgent]) 
         newPositionAgents[indexAgent] = getNewPosition(action, positionAgents[indexAgent])
-        getReward(flags, newPositionAgents[indexAgent], indexAgent)
-        updateQ()
+        reward = getReward(flags, newPositionAgents[indexAgent], indexAgent)
+        updateQ(action, reward, positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent)
         # actions.append(action)
+        if reward != 0:
+            del listAgents[indexAgent] # if an agent eaches the goal 
     testIfCollision(newPositionAgents, positionAgents)
     updateFlags(newPositionAgents, flags)
     return positionAgents
 
+def updateQ(action, reward, currentPosition, newPosition, flags, indexAgent):
+    x,y = currentPosition
+    i,j = newPosition
+    QTable[x][y][action] += alpha * ( reward + F(currentPosition, newPosition, flags) + gamma * maxQ(newPosition, flags, indexAgent) -  QTable[x][y][action] )
 
+# How do we get currentStepInPlan and TotalStepInPlan ???????????
+def F(currentPosition, newPosition):
+    w = 600 
+    np = w * 0
+    p = 0
+    return gamma * np - p
 
-def planBasedRewardLearning(episodes = 100):
+def maxQ(newPosition, flags, indexAgent):
+    rewards= []
+    for i in range(4):
+        position = getNewPosition(i, newPosition)
+        rewards.append(getReward(flags, position, indexAgent))
+    return max(rewards)
+
+def planBasedRewardLearning(gridFile, episodes = 100):
+    
     for episode in range(episodes):
         currentStep = 0
         flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
         positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
         listAgents = [0, 1]
+        
         while len(listAgents) != 0:
-            # On fais une étape
             positionAgents = runOneStep(flags, listAgents, positionAgents, currentStep)
             currentStep += 1
 
     return True
-

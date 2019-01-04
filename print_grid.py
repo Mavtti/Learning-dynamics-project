@@ -16,7 +16,6 @@ from ast import literal_eval
 def getGrid(fichier):
     grid = []
     with open(fichier, 'rt') as f:
-        i = 0
         for line in f:
             grid.insert(0,literal_eval(line[:-1])) #Opposite order
     return grid
@@ -61,7 +60,7 @@ def printGrid(grid):
                         transform=ax.transAxes)
             if room not in seen_rooms:
                 seen_rooms.append(room)
-                if room == 'hall B':
+                if room == 'Hall B':
                     ax.text(float(j+0.5)/n, float(i+4.5)/m, room, fontsize=10,
                         weight='bold',
                         verticalalignment='center',
