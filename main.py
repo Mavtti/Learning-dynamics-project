@@ -201,7 +201,7 @@ def printOnMyWay():
             print(current)
             current = getBestMove(current)
         l.append(current)
-        l = np.asarray(l)
+        l = np.asarray(l) + 0.5
         plt.plot(l[:,0], l[:,1])
     plt.show()
     
