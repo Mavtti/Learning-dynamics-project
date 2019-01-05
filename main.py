@@ -11,6 +11,18 @@ from copy import deepcopy
 from collections import Counter
 import random
 
+plan1 = [
+        ['Room A'],
+        ['Room A', 'A'],
+        ['Hall A', 'A'],
+        ['Hall B', 'A'],
+        ['Room B', 'A'],
+        ['Room B', 'A', 'B'],
+        ['Hall B', 'A', 'B'],
+        ['Hall A', 'A', 'B'],
+        ['Room D', 'A', 'B']        
+        ]
+
 # Load the grid
 grid = getGrid("grid.txt")
 
@@ -143,26 +155,38 @@ def runOneStep(flags, listAgents, positionAgents, currentStep):
         action = getAction(positionAgents[indexAgent]) 
         newPositionAgents[indexAgent] = getNewPosition(action, positionAgents[indexAgent])
         reward = getReward(flags, newPositionAgents[indexAgent], indexAgent)
-        updateQ(action, reward, positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent)
+        updateQ(action, reward, positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plan1)
         # actions.append(action)
         if reward != 0:
             listAgents.remove(indexAgent) # if an agent reaches the goal 
     testIfCollision(newPositionAgents, positionAgents)
     updateFlags(newPositionAgents, flags)
+    print(positionAgents, newPositionAgents)
     return newPositionAgents
 
-def updateQ(action, reward, currentPosition, newPosition, flags, indexAgent):
+def updateQ(action, reward, currentPosition, newPosition, flags, indexAgent, plan):
     x,y = currentPosition
     i,j = newPosition
-    QTable[x][y][action] += alpha * ( reward - 0.5 + gamma * maxQ(newPosition, flags, indexAgent) -  QTable[x][y][action] )
+    QTable[x][y][action] += alpha * ( reward + F1(currentPosition, newPosition, flags, plan, indexAgent) + gamma * maxQ(newPosition, flags, indexAgent) -  QTable[x][y][action] )
     
 # F(currentPosition, newPosition, flags)
 # How do we get currentStepInPlan and TotalStepInPlan ???????????
-def F(currentPosition, newPosition):
-    w = 600 
-    np = w * 0
-    p = 0
-    return gamma * np - p
+def F1(currentPosition, newPosition, flags, plan, indexAgent):
+    w = 100*len(flags) / len(plan)
+    p = [0, 0]
+    pos = [newPosition, currentPosition]
+    for i in range(2):
+        x,y = pos[i]
+        for step in plan:
+            room, flagsTaken = step[0], step[1:]
+            a = [k for k,v in flags.items() if v == indexAgent]  
+            if room == grid[y][x][2] and compare(flagsTaken,a):
+                p[i] = w * (plan.index(step)+1) 
+                break
+    p = np.asarray(p)
+    coeff = np.asarray([gamma,-1])
+    c = coeff * p
+    return sum(c)
 
 def maxQ(newPosition, flags, indexAgent):
     rewards= []
