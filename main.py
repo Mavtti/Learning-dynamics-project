@@ -178,8 +178,30 @@ def planBasedRewardLearning(gridFile, episodes = 100):
         flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
         positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
         listAgents = [0, 1]
-        while len(listAgents ) != 0:
+        while len(listAgents) != 0:
             positionAgents = runOneStep(flags, listAgents, positionAgents, currentStep)
             currentStep += 1
 
     return True
+
+def getBestMove(pos):
+    x,y = pos
+    action = QTable[x][y].index(max(QTable[x][y]))
+    return getNewPosition(action,pos)
+
+
+def printOnMyWay():
+    plt = printGrid(grid)
+    for pos in [ Agent1StartingPosition, Agent2StartingPosition]:
+        current = pos
+        l = []
+        print("########################") # BOUCLE INFINIE !!!!!!!!!!!!!!!!
+        while not compare(current, GoalPosition):
+            l.append(current)
+            print(current)
+            current = getBestMove(current)
+        l.append(current)
+        l = np.asarray(l)
+        plt.plot(l[:,0], l[:,1])
+    plt.show()
+    
