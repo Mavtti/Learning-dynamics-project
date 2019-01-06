@@ -279,9 +279,7 @@ def printGrid(grid):
         y.append(current[1])
         for i in range(len(x)):
             x[i] = x[i]+0.5
-            print(x[i],y[i])
             y[i] = 12-y[i]+0.5
-            print(x[i],y[i])
         plt.plot(x,y)
     
     plt.show()
