@@ -49,7 +49,7 @@ def initQTable(n,m):
     return QTable
 
 # Initialize Q-Table
-QTable = initQTable(len(grid[0]), len(grid))
+QTable = [initQTable(len(grid[0]), len(grid)), initQTable(len(grid[0]), len(grid))]
 
 # Position (x, y) starting with (0, 0) at top left corner
 Agent1StartingPosition = np.array([4, 5])
@@ -70,17 +70,17 @@ Action 2 : top
 Action 3 : right 
 """
 
-def getAction(positionAgent):
+def getAction(positionAgent, index):
     p = random.random()
     if( p > epsilon ):
-        return bestAction(positionAgent)
+        return bestAction(positionAgent, index)
     else:
         return random.randint(0,3)
 
-def bestAction(position):
+def bestAction(position, index):
     x,y = position
-    m = max(QTable[x][y])
-    a = [i for i in range(4) if QTable[x][y][i] == m]
+    m = max(QTable[index][x][y])
+    a = [i for i in range(4) if QTable[index][x][y][i] == m]
     return random.choice(a)
 
 def testIfFinished(positionAgents, listAgents):
@@ -170,7 +170,8 @@ def runOneStep(flags, listAgents, positionAgents, currentStep):
     actions, rewards = {}, {}
     
     for indexAgent in listAgents:
-        actions[indexAgent] = getAction(positionAgents[indexAgent]) 
+        
+        actions[indexAgent] = getAction(positionAgents[indexAgent], indexAgent) 
         newPositionAgents[indexAgent] = getNewPosition(actions[indexAgent], positionAgents[indexAgent])
         rewards[indexAgent] = getReward(flags, newPositionAgents[indexAgent], indexAgent) 
 
@@ -180,12 +181,12 @@ def runOneStep(flags, listAgents, positionAgents, currentStep):
         updateQ(actions[indexAgent], rewards[indexAgent], positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plans[indexAgent])
         if compare(newPositionAgents[indexAgent], GoalPosition):
             listAgents.remove(indexAgent)
-    return newPositionAgents
+    return newPositionAgents, sum(rewards.values())
 
 def updateQ(action, reward, currentPosition, newPosition, flags, indexAgent, plan):
     x,y = currentPosition
     i,j = newPosition
-    QTable[x][y][action] += alpha * ( reward + gamma * maxQ(newPosition) -  QTable[x][y][action] )
+    QTable[indexAgent][x][y][action] += alpha * ( reward + gamma * maxQ(newPosition, indexAgent) -  QTable[indexAgent][x][y][action] )
     
 # F(currentPosition, newPosition, flags)
 # How do we get currentStepInPlan and TotalStepInPlan ???????????
@@ -206,34 +207,38 @@ def F1(currentPosition, newPosition, flags, plan, indexAgent):
     c = coeff * p
     return sum(c)
 
-def maxQ(newPosition):
+def maxQ(newPosition, index):
     x,y = newPosition
-    return max(QTable[x][y])
+    return max(QTable[index][x][y])
 
 def planBasedRewardLearning(gridFile, episodes = 1000):
     
+    rewards = []
     for episode in range(episodes):
         currentStep = 0
         flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
         positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
         listAgents = [0, 1]
+        r = 0
         while len(listAgents) != 0:
-            positionAgents = runOneStep(flags, listAgents, positionAgents, currentStep)
+            positionAgents, reward = runOneStep(flags, listAgents, positionAgents, currentStep)
             currentStep += 1
-    return True
+            r += reward
+        rewards.append(r)
+    return rewards
 
-def getBestMove(pos):
+def getBestMove(pos, index):
     x,y = pos
-    action = QTable[x][y].index(max(QTable[x][y]))
+    action = QTable[index][x][y].index(max(QTable[index][x][y]))
     return getNewPosition(action,pos)
 
-def printGrid(grid):
+def printGrid(grid, rewards):
     m = len(grid)
     n = len(grid[0])
-    
+    grid = list(reversed(grid))
     plt.figure()
-    plt.xticks(range(n))
-    plt.yticks(range(m))
+    plt.xticks(range(1,n+1))
+    plt.yticks(range(1,m+1))
 
     # create a grid
     plt.grid(True, linestyle='-', linewidth=1)
@@ -262,17 +267,17 @@ def printGrid(grid):
 
     plt.hlines(y=m, xmin=0 ,xmax=n, linewidth=4,color='k')
     plt.vlines(x=n, ymin=0 ,ymax=m, linewidth=4,color='k')
-    plt.plot(0,0, marker = 'o', markersize = 5)
     
-    for pos in [ Agent1StartingPosition, Agent2StartingPosition]:
+    for j in range(2):
+        pos = [ Agent1StartingPosition, Agent2StartingPosition][j]
         current = pos
         x,y = [], []
         i =0
-        print("##########")
-        while not compare(current, GoalPosition) and i < 100:
+        while not compare(current, GoalPosition) and i < 300:
             x.append(current[0])
             y.append(current[1])
-            current = getBestMove(current)
+            current = getBestMove(current, j)
+            print(current)
             i +=1
             
         x.append(current[0])
@@ -281,8 +286,15 @@ def printGrid(grid):
             x[i] = x[i]+0.5
             y[i] = 12-y[i]+0.5
         plt.plot(x,y)
+
+    plt.show()
+    print("ok")
     
+    plt.figure()
+    plt.semilogx(np.arange(1,len(rewards)+1), rewards)
     plt.show()
     
-planBasedRewardLearning(grid)
-printGrid(grid)
+
+rewards = planBasedRewardLearning(grid, episodes = 10000)
+print("end", len(rewards))
+printGrid(grid, rewards)
