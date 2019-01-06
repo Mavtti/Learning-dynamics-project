@@ -66,7 +66,8 @@ def getAction(positionAgent):
 def bestAction(position):
     x,y = position
     m = max(QTable[x][y])
-    return QTable[x][y].index(m)
+    a = [ i for i in range(4) if QTable[x][y][i] == m]
+    return randomc.choice(a)
 
 def testIfFinished(positionAgents, listAgents):
     for index in listAgents:
