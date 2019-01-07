@@ -64,8 +64,8 @@ GoalPosition = np.array([1, 11])
 
 # Set parameters
 alpha = 0.1
-gamma = 0.99
-epsilon = 0.01
+gamma = 0.90
+epsilon = 0.1
 lambdaelement = 0.4
 
 
@@ -265,30 +265,46 @@ def NoShaping(gridFile, episodes = 1000, type = 0):
     
     rewards = []
     cs = []
+    t = [[],[]]
+    tt = []
     for episode in range(episodes):
         countStep = 0
         flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
         positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
         listAgents = [0, 1]
         r = 0
+        css = [0,0]
+        rr = 0
+        lam = [[], []]
         while len(listAgents) != 0:
-            positionAgents, reward = runOneStepNoShaping(flags, listAgents, positionAgents)
-            r += reward
+            positionAgents, reward = runOneStepNoShaping(lam, css, flags, listAgents, positionAgents)
+            r += sum(reward)
+            rr += list(reward)[0]
             countStep += 1
         rewards.append(r)
+        t[0].append(css[0])
+        t[1].append(css[1])
         cs.append(countStep)
-    return rewards, cs
+        tt.append(rr)
+        print(flags, reward)
+        for i in range(2):
+            l = lam[i]
+            for j in range(len(l)):
+                ll = l[j]
+                QTableNoShaping[i][ll[0][0]][ll[0][1]][ll[1]] = QTableNoShaping[i][ll[0][0]][ll[0][1]][ll[1]] * (lambdaelement ** j)
+    return rewards, cs, t, tt
 
-def runOneStepNoShaping(flags, listAgents, positionAgents):
+def runOneStepNoShaping(lam, css, flags, listAgents, positionAgents):
 
     newPositionAgents = deepcopy(positionAgents)
     actions, rewards = {}, {}
     
     for indexAgent in listAgents:
-        
+        css[indexAgent] += 1
         actions[indexAgent] = getAction(QTableNoShaping[indexAgent], positionAgents[indexAgent]) 
         newPositionAgents[indexAgent] = getNewPosition(actions[indexAgent], positionAgents[indexAgent])
         rewards[indexAgent] = getReward(flags, newPositionAgents[indexAgent], indexAgent) 
+        lam[indexAgent].insert(0,(positionAgents[indexAgent],actions[indexAgent]))
 
     testIfCollision(newPositionAgents, positionAgents)
     updateFlags(newPositionAgents, flags)
@@ -296,7 +312,7 @@ def runOneStepNoShaping(flags, listAgents, positionAgents):
         updateQ(QTableNoShaping, actions[indexAgent], rewards[indexAgent], positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plans[indexAgent])
         if compare(newPositionAgents[indexAgent], GoalPosition):
             listAgents.remove(indexAgent)
-    return newPositionAgents, sum(rewards.values())
+    return newPositionAgents, rewards.values()
 
 
 
@@ -308,7 +324,10 @@ PRINT RESULTS FUNCTIONS
 def getBestMove(pos, index):
     x,y = pos
     action = QTableNoShaping[index][x][y].index(max(QTableNoShaping[index][x][y]))
-    return getNewPosition(action,pos)
+    p = getNewPosition(action,pos)
+    if index == 0:
+        print(pos, action, QTableNoShaping[index][x][y], p)
+    return p
 
 def printGrid(grid, rewards, countStep):
     m = len(grid)
@@ -351,7 +370,7 @@ def printGrid(grid, rewards, countStep):
         current = pos
         x,y = [], []
         i =0
-        while not compare(current, GoalPosition) and i < 300:
+        while not compare(current, GoalPosition) and i < 1000:
             x.append(current[0])
             y.append(current[1])
             current = getBestMove(current, j)
@@ -366,24 +385,33 @@ def printGrid(grid, rewards, countStep):
 
     plt.show()
     
+    # print reward accumulated per episode
     plt.figure(figsize = (10,6))
-    plt.xticks(range(0,len(rewards),100))
-    plt.yticks(range(0,601,50))
+    plt.xticks(range(0,len(rewards),500))
     plt.xlabel("Episode")
     plt.ylabel("Total reward")
     rewards.insert(0,0)
-    plt.semilogx(np.arange(0,len(rewards)), rewards)
+    plt.plot(np.arange(0,len(rewards)), rewards)
     
+    #  Print step need to reach goal per episode
     plt.figure( figsize = (10,6))
-    plt.xticks(range(0,len(countStep),100))
+    plt.xticks(range(0,len(countStep),500))
     plt.xlabel("Episode")
     plt.ylabel("Steps needed to reach goal")
     countStep.insert(0,0)
-    plt.semilogx(np.arange(0,len(countStep)), countStep)
+    plt.plot(np.arange(0,len(countStep)), countStep)
+    
     
     plt.show()
     
 
-rewards, cs = NoShaping(grid, episodes = 1000)
+rewards, cs, t, tt = NoShaping(grid, episodes = 1000)
 print("count: ",cs.count(0))
 printGrid(grid, rewards, cs)
+
+plt.figure()
+plt.plot(np.arange(0,len(t[0])), t[0])
+plt.figure()
+plt.plot(np.arange(0,len(t[1])), t[1])
+plt.figure()
+plt.plot(np.arange(0,1000), tt)
