@@ -59,7 +59,7 @@ GoalPosition = np.array([1, 11])
 # Set parameters
 alpha = 0.1
 gamma = 0.99
-epsilon = 0.1
+epsilon = 0.01
 lambdaelement = 0.4
 
 
@@ -277,7 +277,6 @@ def printGrid(grid, rewards):
             x.append(current[0])
             y.append(current[1])
             current = getBestMove(current, j)
-            print(current)
             i +=1
             
         x.append(current[0])
@@ -288,13 +287,16 @@ def printGrid(grid, rewards):
         plt.plot(x,y)
 
     plt.show()
-    print("ok")
     
-    plt.figure()
-    plt.semilogx(np.arange(1,len(rewards)+1), rewards)
+    plt.figure(figsize = (10,6))
+    plt.xticks(range(0,len(rewards),100))
+    plt.yticks(range(0,601,50))
+    plt.xlabel("Episode")
+    plt.ylabel("Total reward")
+    rewards.insert(0,0)
+    plt.plot(np.arange(0,len(rewards)), rewards)
     plt.show()
     
 
-rewards = planBasedRewardLearning(grid, episodes = 10000)
-print("end", len(rewards))
+rewards = planBasedRewardLearning(grid, episodes = 1000)
 printGrid(grid, rewards)
