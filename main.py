@@ -49,7 +49,13 @@ def initQTable(n,m):
     return QTable
 
 # Initialize Q-Table
-QTable = [initQTable(len(grid[0]), len(grid)), initQTable(len(grid[0]), len(grid))]
+QTableNoShaping = [initQTable(len(grid[0]), len(grid)), initQTable(len(grid[0]), len(grid))]
+
+QTableJointPlan = []
+Q1 = [initQTable(len(grid[0]), len(grid)) for _ in range(len(plan1))]
+Q2 = [initQTable(len(grid[0]), len(grid)) for _ in range(len(plan2))]
+QTableJointPlan.append(Q1)
+QTableJointPlan.append(Q2)
 
 # Position (x, y) starting with (0, 0) at top left corner
 Agent1StartingPosition = np.array([4, 5])
@@ -70,17 +76,17 @@ Action 2 : top
 Action 3 : right 
 """
 
-def getAction(positionAgent, index):
+def getAction(QTable, positionAgent):
     p = random.random()
     if( p > epsilon ):
-        return bestAction(positionAgent, index)
+        return bestAction(QTable, positionAgent)
     else:
         return random.randint(0,3)
 
-def bestAction(position, index):
+def bestAction(QTable, position):
     x,y = position
-    m = max(QTable[index][x][y])
-    a = [i for i in range(4) if QTable[index][x][y][i] == m]
+    m = max(QTable[x][y])
+    a = [i for i in range(4) if QTable[x][y][i] == m]
     return random.choice(a)
 
 def testIfFinished(positionAgents, listAgents):
@@ -89,6 +95,9 @@ def testIfFinished(positionAgents, listAgents):
             del listAgents[index]
 
 def getNewPosition(action, oldPosition):
+    """
+    From an old position, finds a new position according to a certain action
+    """
     newPosition = deepcopy(oldPosition)
     if action == 0:
         newPosition[1] += 1
@@ -101,6 +110,7 @@ def getNewPosition(action, oldPosition):
     else:
         exit(1) # We have a problem Houston
     return testIfCorrectPosition(action, oldPosition, newPosition)
+
 
 def testIfGoesThroughWall(action, oldPosition, newPosition):
     if action == 0:
@@ -164,29 +174,11 @@ def updateFlags(newPositionAgents, flags):
             flags[flag] = i
 
 
-def runOneStep(flags, listAgents, positionAgents, currentStep):
 
-    newPositionAgents = deepcopy(positionAgents)
-    actions, rewards = {}, {}
-    
-    for indexAgent in listAgents:
-        
-        actions[indexAgent] = getAction(positionAgents[indexAgent], indexAgent) 
-        newPositionAgents[indexAgent] = getNewPosition(actions[indexAgent], positionAgents[indexAgent])
-        rewards[indexAgent] = getReward(flags, newPositionAgents[indexAgent], indexAgent) 
-
-    testIfCollision(newPositionAgents, positionAgents)
-    updateFlags(newPositionAgents, flags)
-    for indexAgent in listAgents:
-        updateQ(actions[indexAgent], rewards[indexAgent], positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plans[indexAgent])
-        if compare(newPositionAgents[indexAgent], GoalPosition):
-            listAgents.remove(indexAgent)
-    return newPositionAgents, sum(rewards.values())
-
-def updateQ(action, reward, currentPosition, newPosition, flags, indexAgent, plan):
+def updateQ(QTable, action, reward, currentPosition, newPosition, flags, indexAgent, plan):
     x,y = currentPosition
     i,j = newPosition
-    QTable[indexAgent][x][y][action] += alpha * ( reward + gamma * maxQ(newPosition, indexAgent) -  QTable[indexAgent][x][y][action] )
+    QTable[indexAgent][x][y][action] += alpha * ( reward + gamma * maxQ(QTable, newPosition, indexAgent) -  QTable[indexAgent][x][y][action] )
     
 # F(currentPosition, newPosition, flags)
 # How do we get currentStepInPlan and TotalStepInPlan ???????????
@@ -207,32 +199,118 @@ def F1(currentPosition, newPosition, flags, plan, indexAgent):
     c = coeff * p
     return sum(c)
 
-def maxQ(newPosition, index):
+def maxQ(QTable, newPosition, index):
     x,y = newPosition
     return max(QTable[index][x][y])
 
-def planBasedRewardLearning(gridFile, episodes = 1000):
+
+"""
+Joint-Plan 
+"""
+
+def JointPlan(gridFile, episodes = 1000):
     
     rewards = []
+    cs = []
     for episode in range(episodes):
-        currentStep = 0
+        countStep = 0
+        flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
+        positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
+        listAgents = [0, 1]
+        r = 0
+        steps = [0, 0]
+        while len(listAgents) != 0:
+            positionAgents, reward = runOneStepJointPlan(steps, flags, listAgents, positionAgents)
+            r += reward
+            countStep += 1
+        rewards.append(r)
+        cs.append(countStep)
+    return rewards, cs
+
+def runOneStepJointPlan(step, flags, listAgents, positionAgents):
+
+    newPositionAgents = deepcopy(positionAgents)
+    actions, rewards = {}, {}
+    
+    for indexAgent in listAgents:
+        QT = QTableJointPlan[indexAgent][step[indexAgent]]
+        actions[indexAgent] = getAction(QT, positionAgents[indexAgent], indexAgent) 
+        newPositionAgents[indexAgent] = getNewPosition(actions[indexAgent], positionAgents[indexAgent])
+        rewards[indexAgent] = getReward(flags, newPositionAgents[indexAgent], indexAgent) 
+
+    testIfCollision(newPositionAgents, positionAgents)
+    updateFlags(newPositionAgents, flags)
+    
+    for indexAgent in listAgents:
+        QT = QTableJointPlan[indexAgent][step[indexAgent]]
+        updateQ(QT, actions[indexAgent], rewards[indexAgent], positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plans[indexAgent])
+        
+        if len(plans[indexAgent][step[indexAgent]]) == 1 and grid[newPositionAgents[indexAgent][1]][newPositionAgents[indexAgent][0]][1] == plans[indexAgent][step[indexAgent]]: # we reach a flag
+            step[indexAgent] += 1
+        elif len(plans[indexAgent][step[indexAgent]]) > 1 and grid[newPositionAgents[indexAgent][1]][newPositionAgents[indexAgent][0]][2] == plans[indexAgent][step[indexAgent]]: # we reach a room
+            step[indexAgent] += 1
+            
+        if step[indexAgent] == len(plans[indexAgent]):
+            listAgents.remove(indexAgent)
+            
+        
+    return newPositionAgents, sum(rewards.values())
+
+
+"""
+No-Shaping plan
+"""
+
+def NoShaping(gridFile, episodes = 1000, type = 0):
+    
+    rewards = []
+    cs = []
+    for episode in range(episodes):
+        countStep = 0
         flags = {'A': -1, 'B': -1, 'C': -1, 'D': -1, 'E': -1, 'F': -1}
         positionAgents = [Agent1StartingPosition, Agent2StartingPosition]
         listAgents = [0, 1]
         r = 0
         while len(listAgents) != 0:
-            positionAgents, reward = runOneStep(flags, listAgents, positionAgents, currentStep)
-            currentStep += 1
+            positionAgents, reward = runOneStepNoShaping(flags, listAgents, positionAgents)
             r += reward
+            countStep += 1
         rewards.append(r)
-    return rewards
+        cs.append(countStep)
+    return rewards, cs
+
+def runOneStepNoShaping(flags, listAgents, positionAgents):
+
+    newPositionAgents = deepcopy(positionAgents)
+    actions, rewards = {}, {}
+    
+    for indexAgent in listAgents:
+        
+        actions[indexAgent] = getAction(QTableNoShaping[indexAgent], positionAgents[indexAgent]) 
+        newPositionAgents[indexAgent] = getNewPosition(actions[indexAgent], positionAgents[indexAgent])
+        rewards[indexAgent] = getReward(flags, newPositionAgents[indexAgent], indexAgent) 
+
+    testIfCollision(newPositionAgents, positionAgents)
+    updateFlags(newPositionAgents, flags)
+    for indexAgent in listAgents:
+        updateQ(QTableNoShaping, actions[indexAgent], rewards[indexAgent], positionAgents[indexAgent], newPositionAgents[indexAgent], flags, indexAgent, plans[indexAgent])
+        if compare(newPositionAgents[indexAgent], GoalPosition):
+            listAgents.remove(indexAgent)
+    return newPositionAgents, sum(rewards.values())
+
+
+
+"""
+PRINT RESULTS FUNCTIONS
+"""
+
 
 def getBestMove(pos, index):
     x,y = pos
-    action = QTable[index][x][y].index(max(QTable[index][x][y]))
+    action = QTableNoShaping[index][x][y].index(max(QTableNoShaping[index][x][y]))
     return getNewPosition(action,pos)
 
-def printGrid(grid, rewards):
+def printGrid(grid, rewards, countStep):
     m = len(grid)
     n = len(grid[0])
     grid = list(reversed(grid))
@@ -294,9 +372,18 @@ def printGrid(grid, rewards):
     plt.xlabel("Episode")
     plt.ylabel("Total reward")
     rewards.insert(0,0)
-    plt.plot(np.arange(0,len(rewards)), rewards)
+    plt.semilogx(np.arange(0,len(rewards)), rewards)
+    
+    plt.figure( figsize = (10,6))
+    plt.xticks(range(0,len(countStep),100))
+    plt.xlabel("Episode")
+    plt.ylabel("Steps needed to reach goal")
+    countStep.insert(0,0)
+    plt.semilogx(np.arange(0,len(countStep)), countStep)
+    
     plt.show()
     
 
-rewards = planBasedRewardLearning(grid, episodes = 1000)
-printGrid(grid, rewards)
+rewards, cs = NoShaping(grid, episodes = 1000)
+print("count: ",cs.count(0))
+printGrid(grid, rewards, cs)
